@@ -13,8 +13,8 @@ from hanziconv import HanziConv
 import jieba
 
 def tfidf(metadata_df, top_cover_dict, length):
-    movie_list = metadata_df.myvdo_content_desc.values
-    movie_ids =  metadata_df.myvdo_content_id.values
+    movie_list = metadata_df.content_desc.values
+    movie_ids =  metadata_df.content_id.values
 
     transformer = TfidfVectorizer(max_features=10000)
     tfidf=transformer.fit_transform(movie_list)
@@ -138,7 +138,7 @@ def generate_VecDict(metadata_df):
 
 
 
-def ntu_content_based_recommend(metadata_file, attribute_data_file, top_cover_file, additional_files, stopword_file='stopwords.txt', userdict_file='myvdo_word_set.txt', length=30):
+def ntu_content_based_recommend(metadata_file, attribute_data_file, top_cover_file, additional_files, stopword_file='stopwords.txt', userdict_file='word_set.txt', length=30):
     
     # read stop words
     with open(stopword_file,'r') as f:
@@ -148,36 +148,36 @@ def ntu_content_based_recommend(metadata_file, attribute_data_file, top_cover_fi
     jieba.load_userdict(userdict_file)
     
     # mapping from content id to top cover
-    top_cover_df = pd.read_csv(top_cover_file).loc[:,['myvdo_content_id','top_cover']]
+    top_cover_df = pd.read_csv(top_cover_file).loc[:,['content_id','top_cover']]
     top_cover_df.loc[top_cover_df.top_cover.isna(),'top_cover'] =\
-    top_cover_df.loc[top_cover_df.top_cover.isna(), 'myvdo_content_id']
-    top_cover_dict = { m:t for m, t in zip(top_cover_df.myvdo_content_id, top_cover_df.top_cover )}
+    top_cover_df.loc[top_cover_df.top_cover.isna(), 'content_id']
+    top_cover_dict = { m:t for m, t in zip(top_cover_df.content_id, top_cover_df.top_cover )}
 
 
     metadata_df = pd.read_csv(metadata_file)    
     
-    movie_list = metadata_df.myvdo_content_desc.values
-    movie_ids = metadata_df.myvdo_content_id.values
+    movie_list = metadata_df.content_desc.values
+    movie_ids = metadata_df.content_id.values
     
     # preprocessing 
     additional_columns = []
     for f in additional_files:
         df  = pd.read_csv(f)
-        current_additional_columns = [c for c in df.columns if c != 'myvdo_content_id']
+        current_additional_columns = [c for c in df.columns if c != 'content_id']
         additional_columns += current_additional_columns
 
         for col in current_additional_columns:            
-            metadata_df = metadata_df.merge(df.groupby('myvdo_content_id')[col].apply(list)\
-                                            .apply(lambda x:' '.join(map(str,x))).reset_index(), on='myvdo_content_id',how='left')
-    for col in additional_columns + ['myvdo_content_nm','kywrd']:
+            metadata_df = metadata_df.merge(df.groupby('content_id')[col].apply(list)\
+                                            .apply(lambda x:' '.join(map(str,x))).reset_index(), on='content_id',how='left')
+    for col in additional_columns + ['content_nm','kywrd']:
         metadata_df[col].fillna("",inplace=True)
-        if col == 'myvdo_ttl_gnr_id':
+        if col == 'ttl_gnr_id':
             metadata_df[col] = metadata_df[col].apply(lambda x:(x + " ")*3 )
         elif col == 'kywrd':
             metadata_df[col] = metadata_df[col].apply(lambda x:(x + " ")*2 )
-        metadata_df['myvdo_content_desc'] = metadata_df['myvdo_content_desc'].str.cat(metadata_df[col].fillna("")).apply(lambda x:x+" ")
+        metadata_df['content_desc'] = metadata_df['content_desc'].str.cat(metadata_df[col].fillna("")).apply(lambda x:x+" ")
        
-    metadata_df['myvdo_content_desc'] = metadata_df['myvdo_content_desc'].apply(lambda x:remove_sepcail_segment(x, jieba_stop_words))
+    metadata_df['content_desc'] = metadata_df['content_desc'].apply(lambda x:remove_sepcail_segment(x, jieba_stop_words))
     
     # TFIDF
     tfidf_embeddings, tfidf_recommend = tfidf(metadata_df, top_cover_dict, length)
@@ -202,7 +202,7 @@ def ntu_content_based_recommend(metadata_file, attribute_data_file, top_cover_fi
     d2v_tfidf_item2item_simiarity[:,np.where(is_valid==0)[0]] = 0
     d2v_tfidf_item2item_simiarity[np.arange(len(d2v_tfidf_item2item_simiarity)), np.arange(len(d2v_tfidf_item2item_simiarity))] = 0
     
-    video_lists = metadata_df.myvdo_content_id.values
+    video_lists = metadata_df.content_id.values
 
     d2v_tfidf_order = np.array(list(map(lambda x: np.flip(np.argsort(x)), d2v_tfidf_item2item_simiarity)))
 
@@ -223,10 +223,10 @@ def ntu_content_based_recommend(metadata_file, attribute_data_file, top_cover_fi
     # doc2vec + binary
     # read attribute data
     attribute_df= pd.read_csv(attribute_data_file)
-    metadata_df = metadata_df.merge(attribute_df.loc[:,['MYVDO_CONTENT_ID','MAIN_MYVDO_TTL_GNR_ID_SYS','ISSR_CNTRY_NM','LANG']].rename(columns={'MYVDO_CONTENT_ID': 'myvdo_content_id'}), on='myvdo_content_id', how='left')
+    metadata_df = metadata_df.merge(attribute_df.loc[:,['CONTENT_ID','MAIN_TTL_GNR_ID_SYS','ISSR_CNTRY_NM','LANG']].rename(columns={'CONTENT_ID': 'content_id'}), on='content_id', how='left')
     
     # create one hot array
-    binary_df = pd.get_dummies(metadata_df.loc[:,['MAIN_MYVDO_TTL_GNR_ID_SYS','ISSR_CNTRY_NM','LANG']])
+    binary_df = pd.get_dummies(metadata_df.loc[:,['MAIN_TTL_GNR_ID_SYS','ISSR_CNTRY_NM','LANG']])
     
     # concatenate d2v and binary
     d2v_binary_embeddings = []
