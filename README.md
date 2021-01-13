@@ -3,8 +3,7 @@
 This is an implementation of combining doc2vec and tf-idf word embedding methods with some binary feature using cross product similarity to generate a content-based model.
 
 # output :
-1. 呼叫函數即自動輸出 .csv檔到當下的位址 
-2. return pandas dataframe
+1. return pandas dataframe
     a. header : ​myvdo_content_id, NTU_REC_VD
     b. content : ​myvdo_content_id and its corresponding top N similar videos (type: str saperator: , )
 
